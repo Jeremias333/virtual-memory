@@ -2,7 +2,7 @@ GCC=gcc
 
 .PHONY: run clean run-dev clean-dev
 
-./src/build: ./src/main.c
+./src/vm: ./src/main.c
 	gcc $^ -o $@
 
 ./dev/build: ./dev/main.c
@@ -22,4 +22,4 @@ clean-dev:
 
 dev: ./dev/build
 
-build: ./src/build
+build: ./src/vm
