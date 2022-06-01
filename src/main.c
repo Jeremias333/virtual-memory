@@ -2,13 +2,33 @@
 #include "string.h"
 #include "stdlib.h"
 
+#define DEFAULT_ERR_MSG "\nOcorreu um problema: "
+#define CLOSE "PROGRAMA ENCERRADO\n"
+
 int choice_path(char **argv);
+int exists_file_path(char *path);
+void print_err(char *err);
 
 int main(int argc, char **argv) {
-    char address_path = argv[0];
-    printf("Dev area operating... %s", address_path);
+    char *address_path = argv[1];
+    
+    printf("Production area operating...");
+    
+    if (exists_file_path(address_path) == 0){
+        char *ERR = DEFAULT_ERR_MSG"Não foi passado um parametro com o caminho na inicialização do programa";
+        print_err(ERR);
+        return 1;
+    }
 
-    return 1;
+    int program_path = choice_path(argv);
+
+    printf("%d\n", program_path);
+    if (program_path == -1){
+        char *ERR = DEFAULT_ERR_MSG"Impossível inicializar o programa com apenas um parametro de algoritmo";
+        print_err(ERR);
+        return 1;
+    }
+    return 0;
 }
 
 int choice_path(char **argv){
@@ -19,16 +39,32 @@ int choice_path(char **argv){
         2 lru and fifo
     */
 
-    if(argv[2] == NULL && argv[3] == NULL){
-        path = 0;
+    printf("Arg 1 - %s\nArg 2 - %s \n", argv[2], argv[3]);
+
+    if(argv[3] == NULL){
+        path -1;
+    }else if(argv[2] == NULL && argv[3] == NULL){
         // Os dois valores passados são nulos, nesse caso usaremos fifo para paginação e TLB. 
-    }else if (argv[2] == "fifo" && argv[3] == "fifo"){
         path = 0;
-    }else if(argv[2] == "fifo" && argv[3] == "lru"){
+    }else if (strcmp(argv[2], "fifo") == 0 && strcmp(argv[3], "fifo") == 0){
+        path = 0;
+    }else if(strcmp(argv[2], "fifo") == 0 && strcmp(argv[3], "lru") == 0){
         path = 1;
-    }else if(argv[2] == "lru" && argv[3] == "fifo"){
+    }else if(strcmp(argv[2], "lru") == 0 && strcmp(argv[3], "fifo") == 0){
         path = 2;
     }
 
     return path;
+}
+
+int exists_file_path(char *path){
+    if (path == NULL){
+        return 0;
+    }
+    return 1;
+}
+
+void print_err(char *err){
+    printf("%s\n", err);
+    printf(CLOSE);
 }
