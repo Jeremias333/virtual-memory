@@ -3,7 +3,7 @@
 ./vm: ./src/main.c
 	gcc $^ -o $@
 
-./dev/vm: ./dev/main.c
+./vm-dev: ./dev/main.c
 	gcc $^ -o $@
 
 run: 
@@ -13,11 +13,11 @@ clean:
 	rm vm
 
 run-dev:
-	./dev/build
+	./dev/vm
 
 clean-dev:
 	rm ./dev/vm
 
-dev: ./dev/vm
+dev: ./vm-dev
 
 build: ./vm
