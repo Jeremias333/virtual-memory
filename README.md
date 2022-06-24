@@ -23,6 +23,7 @@
 
 ## Implementações:
 
+### - Tradução dos endereços [x]
 ### - Page table [x]
 
 ### - Page table com fifo []
