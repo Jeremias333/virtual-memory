@@ -26,7 +26,7 @@
 ### - Tradução dos endereços [x]
 ### - Page table [x]
 
-### - Page table com fifo []
+### - Page table com fifo [x]
 
 ### - Page table com lru []
 
