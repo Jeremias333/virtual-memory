@@ -12,8 +12,8 @@
 #define CLOSE "PROGRAMA ENCERRADO\n"
 
 //Page CONSTANTES
-#define PAGE_SIZE 256
-#define PAGE_ENTRIES 256
+#define PAGE_SIZE 128
+#define PAGE_ENTRIES 128
 
 //Frame CONSTANTES
 #define FRAME_SIZE 256
@@ -28,7 +28,11 @@
 //BACKING_STORE CONSTANTES
 #define BACKING_STORE_FILE_NAME "BACKING_STORE.bin"
 
+//output file CONSTANTES
+#define CORRECT_FILE_NAME "correct.txt" 
+
 FILE *arq_address;
+FILE *arq_correct_output;
 
 char physical_memory[MEMORY_SIZE];
 
@@ -62,6 +66,7 @@ void initialize_page_table();
 int get_page_number(int virtual_address);
 int get_offset(int virtual_address);
 int get_frame_number(int page_number);
+void prepare_to_write_correct();
 
 int main(int argc, char **argv) {
     char *address_path = argv[1];
@@ -94,6 +99,8 @@ int main(int argc, char **argv) {
         print_err(ERR);
         return 1;
     }
+
+    prepare_to_write_correct();
 
     initialize_page_table();
 
@@ -192,13 +199,15 @@ void read_and_process_address(char *file_name){
             if(memory_index != -1){
                 // existe um frame livre
                 // Faremos então o armazenamento do valor no backing store
-                memcpy((physical_memory + memory_index), (backing_store_data + page_address), PAGE_SIZE);
+                memcpy(physical_memory + memory_index, backing_store_data + page_address, PAGE_SIZE);
 
                 frame_number = memory_index;
 
                 physical_address = frame_number + offset;
 
                 value = physical_memory[physical_address];
+                printf("Dentro de uma memória livre");
+                fprintf(arq_correct_output, "Dentro de uma memória livre\n");
 
                 page_table[page_number] = memory_index;
 
@@ -214,16 +223,20 @@ void read_and_process_address(char *file_name){
 
             }else{
                 // Não existe um frame livre na memória física
-                printf("Page fault\n");
+                printf("Não existe memória livre\n");
+                fprintf(arq_correct_output, "Não existe memória livre\n");
             }
 
 
         }
 
-        printf("Endereço Virtual: %d Endereço Físico: %d Valor: %d\n", virtual_address, physical_address, value);
-
+        // printf("Endereço Virtual: %d Endereço Físico: %d Valor: %d\n", virtual_address, physical_address, value);
+        // *arq_correct_output.write("Virtual Address: %d Physical Address: %d Value: %d\n", virtual_address, physical_address, value);
+        fprintf(arq_correct_output, "Virtual Address: %d Physical Address: %d Value: %d\n", virtual_address, physical_address, value);
     }
+
     fclose(arq_address);
+    fclose(arq_correct_output);
 }
 
 void read_backing_store(){
@@ -236,6 +249,7 @@ void read_backing_store(){
     if (backing_store_data == MAP_FAILED){
         char *ERR = DEFAULT_ERR_MSG"Ao tentar mapear o backing store";
         print_err(ERR);
+        close(backing_store_file_descriptor);
         exit(1);
     }
 }
@@ -265,3 +279,12 @@ int get_frame_number(int page_number){
     return page_table[page_number];
 }
 
+void prepare_to_write_correct(){
+    //Resetando o arquivo a primeira vez que o programa é executado
+    arq_correct_output = fopen(CORRECT_FILE_NAME, "w");
+    // fprintf(arq_correct_output, "");
+    fclose(arq_correct_output);
+
+    //Abrindo arquivo para append no arquivo
+    arq_correct_output = fopen(CORRECT_FILE_NAME, "a");
+}
