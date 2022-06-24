@@ -4,8 +4,6 @@
 #include "unistd.h"
 #include "fcntl.h"
 #include "sys/types.h"
-#include "sys/mman.h"
-#include "sys/stat.h"
 
 //Error CONSTANTES
 #define DEFAULT_ERR_MSG "\nOcorreu um problema: "
@@ -49,8 +47,6 @@ int page_and_tlb_path = 0;
 FILE* backing_store_file_descriptor;
 char* backing_store_data;
 
-int page_fault_counter = 0;
-
 typedef struct {
     int frame;
     int bit;
@@ -58,6 +54,12 @@ typedef struct {
 } pageTableStruct;
 
 pageTableStruct page_table[PAGE_SIZE];
+
+int number_translated = 0;
+float page_fault_rate = 0;
+int page_fault_counter = 0;
+int tlb_hit = 0;
+float tlb_rate = 0;
 
 
 //function MODELS DECLARATIONS
@@ -72,6 +74,7 @@ int get_page_number(int virtual_address);
 int get_offset(int virtual_address);
 int get_frame_number(int page_number);
 void prepare_to_write_correct();
+void make_page_table_fifo_or_lru(int page_number);
 
 int main(int argc, char **argv) {
     char *address_path = argv[1];
@@ -105,6 +108,12 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    if(page_and_tlb_path == -3){
+        char *ERR = DEFAULT_ERR_MSG"Impossível inicializar o programa com 4 parametros";
+        print_err(ERR);
+        return 1;
+    }
+
     prepare_to_write_correct();
 
     initialize_page_table();
@@ -126,7 +135,11 @@ int choice_path(char **argv){
     //Caso o segundo parametro não existe, o 3º parametro é impossivel de existir
     if(argv[2] == NULL){
         path = -2;
- 
+
+    //Existe um 4º parametro
+    }else if(argv[4] != NULL){
+        path = -3;
+    
     // Os dois valores passados são nulos.
     }else if(argv[2] != NULL && argv[3] == NULL){
         path = -1;
@@ -136,6 +149,8 @@ int choice_path(char **argv){
         path = 1;
     }else if(strcmp(argv[2], "lru") == 0 && strcmp(argv[3], "fifo") == 0){
         path = 2;
+    }else if (strcmp(argv[2], "lru") == 0 && strcmp(argv[3], "lru") == 0) {
+        path = 3;
     }else{
         path = -1;
     }
@@ -156,6 +171,15 @@ void print_err(char *err){
 }
 
 void read_and_process_address(char *file_name){
+    char *temp[3];
+    *temp = &file_name[strlen(file_name)-3];
+
+    if(strcmp(*temp, "txt") != 0){
+        char *ERR = DEFAULT_ERR_MSG"O arquivo passado não é um arquivo .txt";
+        print_err(ERR);
+        exit(1);
+    }
+
     arq_address = fopen(file_name, "r");
     char line[7];
 
@@ -170,6 +194,7 @@ void read_and_process_address(char *file_name){
         virtual_address = atoi(line);
 
         page_number = get_page_number(virtual_address);
+        number_translated++;
 
         // fprintf(arq_correct_output, "PAGE NUMBER: %d\n", page_number);
 
@@ -185,18 +210,17 @@ void read_and_process_address(char *file_name){
         int frame_number_value = get_frame_number(page_number);
 
         if (frame_number_value == -1){
-            //fazendo leitura do backing store e escrevendo valor referente ao page_number ao
-            //meu array de char physical_memory
-            read_backing_store(page_number);
 
-            if(memory_index == 127){
-                memory_index = 0;
-            }
+            //Page Fault, devo chamar FIFO ou LRU para resolver
+
+            //fazendo leitura do backing store e escrevendo valor referente ao page_number ao
+            //meu array de char physical_memory com FIFO ou LRU
+            make_page_table_fifo_or_lru(page_number);
+            read_backing_store(page_number);
 
             frame_number = memory_index;
             physical_address = (frame_number * 256) + offset;
             memory_index++;
-            // Implementar aqui a chamada da atualização da TLB
 
             page_table[page_number].frame = frame_number;
             page_table[page_number].bit = 1;
@@ -211,7 +235,11 @@ void read_and_process_address(char *file_name){
 
         fprintf(arq_correct_output, "Virtual Address: %d Physical Address: %d Value: %d\n", virtual_address, physical_address, value);
     }
-
+    fprintf(arq_correct_output, "Number of Translated Addresses = %d\n", number_translated);
+    fprintf(arq_correct_output, "Page Faults = %d\n", page_fault_counter);
+    fprintf(arq_correct_output, "Page Faults Rate = %lf\n", page_fault_rate);
+    fprintf(arq_correct_output, "TLB Hits = %d\n", tlb_hit);
+    fprintf(arq_correct_output, "TLB Hit Rate = %lf\n", tlb_rate);
     fclose(arq_address);
     fclose(arq_correct_output);
 }
@@ -271,4 +299,42 @@ void initialize_page_table(){
         page_table[i].bit = -1;
         page_table[i].time = -1;
     }
+}
+
+void make_page_table_fifo_or_lru(int page_number){
+    
+    if (page_and_tlb_path == 1 || page_and_tlb_path == 0){
+    //FIFO
+
+        if(memory_index == 127){
+            memory_index = 0;
+
+            for(int i = 0; i < PAGE_SIZE; i++){
+                if (page_table[i].frame == memory_index){
+                    page_table[i].frame = -1;
+                    page_table[i].bit = -1;
+                }
+            }
+
+        }else{
+            for(int i = 0; i < PAGE_SIZE; i++){
+                if (page_table[i].frame == memory_index){
+                    page_table[i].frame = -1;
+                    page_table[i].bit = -1;
+                }
+                
+            }
+        }
+
+    //LRU
+    }else{
+        // int aux = page_table[page_number].time;
+        // for (int i = 0; i < 127; i++) {
+        //     if (page_table[i].time < aux){
+        //         aux = page_table[i].time;
+        //         memory_index = i;
+        //     }
+        // }
+        // page_table[page_number].frame = memory_index;
+    } 
 }
