@@ -20,3 +20,16 @@
 
 ### - A execução dele não funciona no make por conta dos parametros que devem ser passados, utilize o exemplo mostrado.
 
+
+## Implementações:
+
+### - Page table [x]
+
+### - Page table com fifo []
+
+### - Page table com lru []
+
+### - TLB com fifo []
+
+### - TLB com lru []
+
